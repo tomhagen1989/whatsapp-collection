@@ -37,4 +37,8 @@ def create_tenant(payload: TenantCreate, db: Session = Depends(get_db)) -> dict:
     db.add(tenant)
     db.commit()
     db.refresh(tenant)
-    return {"tenant_id": tenant.id, "business_name": tenant.business_name}
+    return {
+        "business_id": tenant.id,
+        "tenant_id": tenant.id,
+        "business_name": tenant.business_name,
+    }
