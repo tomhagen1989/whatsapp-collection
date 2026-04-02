@@ -6,7 +6,7 @@ from app.models import RawMessage
 from app.schemas import ParsedMessage, VerificationResult, WhatsAppWebhookPayload
 from app.services.ai import AIOrchestrator
 from app.services.briefing import build_morning_brief, render_brief_text
-from app.services.collections import apply_case_update, build_customer_timeline, create_pending_confirmation, get_pending_confirmation
+from app.services.collections import apply_case_update, build_customer_timeline, create_pending_confirmation, find_customer_candidates, get_pending_confirmation
 from app.services.verification import verify_case_update
 
 router = APIRouter(prefix="/webhooks", tags=["webhooks"])
@@ -47,11 +47,13 @@ def whatsapp_webhook(payload: WhatsAppWebhookPayload, db: Session = Depends(get_
         return {"status": "updated", "reply_text": f"Logged {parsed.outcome_type} for case {case.invoice_reference or case.id}."}
 
     if parsed.intent == "customer_timeline" and parsed.customer_name:
-        verification = verify_case_update(db, payload.tenant_id, ParsedMessage(intent="update_case", customer_name=parsed.customer_name))
-        customer_id = verification.customer_id if verification.customer_id else None
-        if customer_id is None:
-            return {"status": "clarification_required", "reply_text": verification.clarification_question}
-        timeline = build_customer_timeline(db, payload.tenant_id, customer_id)
+        matches = find_customer_candidates(db, payload.tenant_id, parsed.customer_name)
+        if not matches:
+            return {"status": "clarification_required", "reply_text": f"I could not find '{parsed.customer_name}'."}
+        if len(matches) > 1:
+            options = ", ".join(match.customer_name for match in matches[:3])
+            return {"status": "clarification_required", "reply_text": f"I found multiple matches: {options}. Please reply with the exact customer name."}
+        timeline = build_customer_timeline(db, payload.tenant_id, matches[0].id)
         return {"status": "ok", "reply_text": ai.summarize_timeline(timeline) or timeline.model_dump(mode="json")}
 
     if parsed.intent in {"top_overdue", "promises_due", "bucket_query"}:
