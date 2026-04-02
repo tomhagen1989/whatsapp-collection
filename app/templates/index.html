@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Receivables Copilot</title>
+    <link rel="stylesheet" href="/static/app.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="hero">
+        <p class="eyebrow">Receivables Copilot MVP</p>
+        <h1>WhatsApp-first collections, with a real memory.</h1>
+        <p class="lede">Set up the tenant, connect Drive, register the source sheet, and trigger the first sync from this lightweight operator console.</p>
+      </section>
+
+      <section class="grid">
+        <article class="card">
+          <h2>Create tenant</h2>
+          <form id="tenant-form">
+            <label>Business name<input name="business_name" required /></label>
+            <label>Timezone<input name="timezone" value="Asia/Kolkata" required /></label>
+            <button type="submit">Create tenant</button>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Connect Google Drive</h2>
+          <form id="drive-form">
+            <label>Tenant ID<input name="tenant_id" required /></label>
+            <label>Authorization code<input name="authorization_code" required /></label>
+            <label>Account email<input name="account_email" /></label>
+            <button type="submit">Store tokens</button>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Register source</h2>
+          <form id="source-form">
+            <label>Tenant ID<input name="tenant_id" required /></label>
+            <label>Google file ID<input name="google_file_id" required /></label>
+            <label>Google file name<input name="google_file_name" required /></label>
+            <label>Sheet name<input name="source_sheet_name" /></label>
+            <button type="submit">Add source</button>
+          </form>
+        </article>
+
+        <article class="card">
+          <h2>Run import</h2>
+          <form id="import-form">
+            <label>Tenant ID<input name="tenant_id" required /></label>
+            <label>Drive source ID<input name="drive_source_id" required /></label>
+            <button type="submit">Sync now</button>
+          </form>
+        </article>
+      </section>
+
+      <section class="card list-card">
+        <h2>Current tenants</h2>
+        <ul>
+          {% for tenant in tenants %}
+          <li>#{{ tenant.id }} - {{ tenant.business_name }} ({{ tenant.timezone }})</li>
+          {% else %}
+          <li>No tenants yet.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="card list-card">
+        <h2>Registered sources</h2>
+        <ul>
+          {% for source in sources %}
+          <li>#{{ source.id }} - {{ source.google_file_name }}{% if source.last_synced_at %} - last synced {{ source.last_synced_at }}{% endif %}</li>
+          {% else %}
+          <li>No sources yet.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="card">
+        <h2>Console</h2>
+        <pre id="result">Ready.</pre>
+      </section>
+    </main>
+
+    <script>
+      async function submitJson(formId, endpoint) {
+        const form = document.getElementById(formId);
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const formData = new FormData(form);
+          const payload = Object.fromEntries(formData.entries());
+          for (const key of Object.keys(payload)) {
+            if (payload[key] === '') {
+              delete payload[key];
+            }
+            if (key.endsWith('_id')) {
+              payload[key] = Number(payload[key]);
+            }
+          }
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(payload),
+          });
+          const data = await response.json();
+          document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        });
+      }
+      submitJson('tenant-form', '/tenants');
+      submitJson('drive-form', '/drive/connect');
+      submitJson('source-form', '/drive/sources');
+      submitJson('import-form', '/imports/run');
+    </script>
+  </body>
+</html>
