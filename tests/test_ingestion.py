@@ -58,3 +58,15 @@ def test_ingest_manual_upload_creates_manual_source_and_snapshot(db_session, see
     assert snapshot.drive_source_id == source.id
     assert case.invoice_reference == "INV-2403-021"
     assert str(case.amount_outstanding) == "42000.00"
+
+
+def test_ingest_source_file_accepts_semicolon_delimited_csv(db_session, seeded_tenant):
+    tenant, source = seeded_tenant
+    csv_payload = b"Date;Ref No.;Party's Name;Pending Amount;Due On;Overdue by days\n2026-01-05;INV-1001;Gupta Traders;48500;2026-02-04;58\n"
+
+    snapshot = ingest_source_file(db_session, tenant.id, source, "semicolon-upload.csv", csv_payload, None)
+
+    assert snapshot.imported_rows == 1
+    case = db_session.query(ReceivableCase).one()
+    assert case.invoice_reference == "INV-1001"
+    assert str(case.amount_outstanding) == "48500.00"

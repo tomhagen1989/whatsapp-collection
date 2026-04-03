@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import csv
+import io
 import re
 from collections import defaultdict
 from datetime import date, datetime
 from decimal import Decimal
 
 import pandas as pd
+from pandas.errors import ParserError
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -81,6 +84,36 @@ def _pick_source_column(canonical_field: str, normalized_columns: dict[str, str]
     return None
 
 
+def _read_csv_dataframe(content: bytes) -> pd.DataFrame:
+    raw_text = content.decode("utf-8-sig", errors="replace")
+    preview = raw_text[:500].lower()
+    if "<html" in preview or "<!doctype html" in preview:
+        raise ValueError("Uploaded file looks like an HTML page, not a CSV export. Download the raw CSV file and upload it again.")
+
+    sample = "\n".join(raw_text.splitlines()[:5])
+    candidate_delimiters: list[str] = []
+    try:
+        dialect = csv.Sniffer().sniff(sample, delimiters=",;\t|")
+        candidate_delimiters.append(dialect.delimiter)
+    except csv.Error:
+        pass
+
+    for delimiter in [",", ";", "\t", "|"]:
+        if delimiter not in candidate_delimiters:
+            candidate_delimiters.append(delimiter)
+
+    last_error: Exception | None = None
+    for delimiter in candidate_delimiters:
+        try:
+            dataframe = pd.read_csv(io.StringIO(raw_text), sep=delimiter, engine="python")
+            if len(dataframe.columns) > 1:
+                return dataframe
+        except (ParserError, UnicodeDecodeError, ValueError) as exc:
+            last_error = exc
+
+    raise ValueError(f"Could not parse CSV upload. {last_error}")
+
+
 def _as_decimal(value: object) -> Decimal:
     if value is None or value == "":
         return Decimal("0")
@@ -99,7 +132,7 @@ def _as_date(value: object) -> date | None:
 
 def load_rows(file_name: str, content: bytes, mapping: dict[str, str], sheet_name: str | None) -> list[ReceivableImportRow]:
     if file_name.lower().endswith(".csv"):
-        dataframe = pd.read_csv(pd.io.common.BytesIO(content))
+        dataframe = _read_csv_dataframe(content)
     else:
         dataframe = pd.read_excel(pd.io.common.BytesIO(content), sheet_name=sheet_name or 0)
 
