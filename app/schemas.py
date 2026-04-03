@@ -31,6 +31,12 @@ class ManualImportRequest(BaseModel):
     drive_source_id: int
 
 
+class CsvPasteImportRequest(BaseModel):
+    tenant_id: int
+    csv_text: str
+    file_name: str = "receivables-paste.csv"
+
+
 class ReceivableImportRow(BaseModel):
     customer_name: str
     amount_outstanding: Decimal

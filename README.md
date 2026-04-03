@@ -8,6 +8,7 @@ Receivables Copilot is an LLM-forward MVP for WhatsApp-first collections operati
 - PostgreSQL-friendly SQLAlchemy models and Alembic bootstrap migration
 - Google Drive connection + source registration service seams
 - Manual CSV/XLSX upload for first-pilot onboarding
+- JSON-based pasted CSV import for networks that block file uploads
 - CSV/XLSX normalization and snapshot-based reconciliation
 - Structured customer timeline and morning brief generation
 - OpenRouter-backed message parsing, summarization, and recommendation
@@ -37,8 +38,9 @@ The fastest pilot path is now:
 
 1. Create a business
 2. Upload the CSV/XLSX directly from the console with `POST /imports/upload`
-3. Review `GET /summary/today`
-4. Start testing WhatsApp-style queries and updates
+3. If your network blocks uploads, use `POST /imports/paste` from the new paste form instead
+4. Review `GET /summary/today`
+5. Start testing WhatsApp-style queries and updates
 
 If an import fails, check `GET /imports/history?tenant_id=<business_id>` or the `Recent imports` section on the dashboard for the latest error message.
 
@@ -104,6 +106,7 @@ Because Railway config-as-code applies per deployment, it is usually simplest to
 - `POST /drive/sources` - register the receivables source file
 - `POST /imports/run` - trigger a Drive-backed import
 - `POST /imports/upload` - upload and import a local CSV/XLSX file
+- `POST /imports/paste` - import CSV text without a file upload
 - `GET /imports/history` - inspect recent import statuses and errors for a business
 - `GET /summary/today` - deterministic morning brief + suggested actions
 - `GET /customers/{customer_id}/timeline` - customer memory view

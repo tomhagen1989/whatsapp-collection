@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 
 from app.database import get_db
 from app.models import DriveSource, ImportSnapshot
-from app.schemas import ManualImportRequest
+from app.schemas import CsvPasteImportRequest, ManualImportRequest
 from app.services.drive import download_drive_source
 from app.services.ingestion import ingest_source_file
 from app.services.uploads import ingest_manual_upload
@@ -72,6 +72,33 @@ async def upload_import(
             "status": "error",
             "message": str(exc),
             "google_file_name": file_name,
+            "provider": "manual_upload",
+        }
+    return {
+        "status": snapshot.sync_status,
+        "snapshot_id": snapshot.id,
+        "rows": snapshot.imported_rows,
+        "drive_source_id": source.id,
+        "provider": source.provider,
+        "google_file_name": source.google_file_name,
+    }
+
+
+@router.post("/paste")
+def paste_import(payload: CsvPasteImportRequest, db: Session = Depends(get_db)) -> dict:
+    try:
+        snapshot, source = ingest_manual_upload(
+            db,
+            payload.tenant_id,
+            payload.file_name,
+            payload.csv_text.encode("utf-8"),
+            sheet_name=None,
+        )
+    except Exception as exc:
+        return {
+            "status": "error",
+            "message": str(exc),
+            "google_file_name": payload.file_name,
             "provider": "manual_upload",
         }
     return {

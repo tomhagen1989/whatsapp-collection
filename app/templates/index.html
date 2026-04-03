@@ -26,12 +26,23 @@
 
         <article class="card card-highlight">
           <h2>Upload receivables file</h2>
-          <p class="card-copy">Fastest pilot path. Upload a Tally-style CSV or XLSX and the app will create a manual source plus import it immediately.</p>
+          <p class="card-copy">Fastest pilot path when file uploads are allowed. Upload a Tally-style CSV or XLSX and the app will create a manual source plus import it immediately.</p>
           <form id="upload-form">
             <label>Business ID<input name="tenant_id" required /></label>
             <label>Sheet name (only for XLSX)<input name="source_sheet_name" /></label>
             <label>Receivables file<input name="file" type="file" accept=".csv,.xlsx,.xls" required /></label>
             <button type="submit">Upload and import</button>
+          </form>
+        </article>
+
+        <article class="card card-highlight">
+          <h2>Paste receivables CSV</h2>
+          <p class="card-copy">Use this if your network blocks file uploads. Paste the CSV text directly and the app will import it through a normal JSON request.</p>
+          <form id="paste-form">
+            <label>Business ID<input name="tenant_id" required /></label>
+            <label>File name<input name="file_name" value="receivables-paste.csv" required /></label>
+            <label>CSV text<textarea name="csv_text" rows="10" required></textarea></label>
+            <button type="submit">Paste and import</button>
           </form>
         </article>
 
@@ -155,6 +166,7 @@
 
       submitJson('tenant-form', '/tenants');
       submitMultipart('upload-form', '/imports/upload');
+      submitJson('paste-form', '/imports/paste');
       submitJson('drive-form', '/drive/connect');
       submitJson('source-form', '/drive/sources');
       submitJson('import-form', '/imports/run');
