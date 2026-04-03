@@ -25,6 +25,12 @@ Receivables Copilot is an LLM-forward MVP for WhatsApp-first collections operati
 4. Start the API: `uvicorn app.main:app --reload`
 5. Open `http://localhost:8000` for the onboarding console.
 
+## Sample receivables file
+
+The repo includes a realistic Tally-style starter export at [sample_data/tally_bills_receivable_sample.csv](/sample_data/tally_bills_receivable_sample.csv).
+
+Use [docs/tally-receivables-source.md](/docs/tally-receivables-source.md) for the recommended Tally report and the expected export shape.
+
 ## Model switching
 
 The LLM layer is wired through OpenRouter using the OpenAI-compatible SDK.
@@ -39,7 +45,7 @@ No code changes should be required to move between OpenRouter-hosted models unle
 
 This repo now includes a `railway.json` that uses Railway config-as-code with:
 
-- `RAILPACK` as the builder
+- `DOCKERFILE` as the builder
 - `alembic upgrade head` as the pre-deploy command
 - `python -m uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000} --proxy-headers` as the web start command
 - `/healthz` as the healthcheck path

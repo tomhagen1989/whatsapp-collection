@@ -13,22 +13,53 @@ from app.database import utcnow
 from app.models import Customer, CustomerProfile, DriveSource, ImportSnapshot, ReceivableCase
 from app.schemas import ReceivableImportRow
 
-COLUMN_ALIASES = {
-    "customer_name": ["customer", "party_name", "debtor_name", "name"],
-    "amount_outstanding": ["amount", "balance", "outstanding", "closing_balance"],
-    "due_date": ["due", "due_dt"],
-    "invoice_reference": ["invoice", "invoice_no", "invoice_number", "bill_no"],
-    "invoice_date": ["invoice_dt", "bill_date"],
-    "overdue_days": ["days_overdue", "age_days"],
-    "phone_number": ["phone", "mobile"],
-    "salesperson": ["sales_person", "owner"],
-    "notes": ["remarks", "comment"],
-    "external_customer_code": ["customer_code", "party_code", "ledger_code"],
-}
-
 
 def normalize_name(value: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", value.lower())).strip()
+
+
+RAW_COLUMN_ALIASES = {
+    "customer_name": [
+        "customer",
+        "party_name",
+        "party name",
+        "party's name",
+        "debtor_name",
+        "debtor name",
+        "name",
+    ],
+    "amount_outstanding": [
+        "amount",
+        "balance",
+        "outstanding",
+        "closing_balance",
+        "closing balance",
+        "pending amount",
+        "pending",
+    ],
+    "due_date": ["due", "due_dt", "due date", "due on"],
+    "invoice_reference": [
+        "invoice",
+        "invoice_no",
+        "invoice_number",
+        "bill_no",
+        "ref no",
+        "ref no.",
+        "reference",
+        "bill reference",
+    ],
+    "invoice_date": ["invoice_dt", "bill_date", "date", "voucher date"],
+    "overdue_days": ["days_overdue", "age_days", "overdue days", "overdue by days"],
+    "phone_number": ["phone", "mobile", "mobile no", "mobile number", "phone number"],
+    "salesperson": ["sales_person", "owner", "sales person", "salesperson"],
+    "notes": ["remarks", "comment", "narration", "notes"],
+    "external_customer_code": ["customer_code", "party_code", "party code", "ledger_code", "ledger code"],
+}
+
+COLUMN_ALIASES = {
+    field: {normalize_name(alias) for alias in aliases}
+    for field, aliases in RAW_COLUMN_ALIASES.items()
+}
 
 
 def _normalize_columns(columns: list[str]) -> dict[str, str]:
@@ -42,10 +73,10 @@ def _pick_source_column(canonical_field: str, normalized_columns: dict[str, str]
         for original, normalized in normalized_columns.items():
             if normalized == explicit_normalized:
                 return original
+
+    candidate_names = {normalize_name(canonical_field), *COLUMN_ALIASES.get(canonical_field, set())}
     for original, normalized in normalized_columns.items():
-        if normalized == canonical_field:
-            return original
-        if normalized in COLUMN_ALIASES.get(canonical_field, []):
+        if normalized in candidate_names:
             return original
     return None
 

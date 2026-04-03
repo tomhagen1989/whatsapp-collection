@@ -1,0 +1,7 @@
+Date,Ref No.,Party's Name,Opening Amount,Pending Amount,Due On,Overdue by days,Mobile,Sales Person,Remarks,Party Code
+2026-01-12,INV-2401-118,Gupta Traders,"48,500","48,500",2026-02-11,51,9876543210,Rohit Sharma,Follow up after Friday market,CUST-001
+2026-01-28,INV-2401-207,Mehta Agencies,"1,20,000","95,000",2026-02-27,35,9810012345,Anita Verma,Promised 20000 next week,CUST-002
+2026-02-03,INV-2402-014,Shree Balaji Distributors,"76,000","76,000",2026-03-05,29,9899001122,Rohit Sharma,Escalate with owner if no reply,CUST-003
+2026-02-15,INV-2402-095,NK Pharma Retail,"33,500","33,500",2026-03-16,18,9822044455,Priya Nair,Waiting for debit note approval,CUST-004
+2026-02-20,INV-2402-143,Sai Medical Hall,"15,800","5,800",2026-03-21,13,9933007788,Priya Nair,Partial payment received on call,CUST-005
+2026-03-01,INV-2403-021,Kaveri Super Stores,"42,000","42,000",2026-03-31,3,9888877766,Anita Verma,New overdue case,CUST-006
