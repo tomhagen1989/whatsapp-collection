@@ -82,10 +82,10 @@ def expect_decimal(value: str | int | float, expected: Decimal, label: str) -> N
 
 
 def extract_confirmation_token(reply_text: str) -> str:
-    match = re.search(r"confirm\s+([0-9a-fA-F]+)", reply_text)
-    if not match:
+    matches = re.findall(r"confirm\s+([0-9a-fA-F]{8})", reply_text, flags=re.IGNORECASE)
+    if not matches:
         raise EvalError(f"Could not find confirmation token in reply: {reply_text}")
-    return match.group(1)
+    return matches[-1]
 
 
 def get_summary(base_url: str, business_id: int) -> dict:

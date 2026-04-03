@@ -11,11 +11,15 @@ from app.config import get_settings
 from app.schemas import CustomerTimelineView, MorningBriefView, ParsedMessage
 
 
+CONFIRM_PATTERN = re.compile(r"^confirm\s+(?P<token>\S+)$", flags=re.IGNORECASE)
+
+
 def _heuristic_parse(text: str) -> ParsedMessage:
     cleaned = text.strip()
     lower = cleaned.lower()
-    if lower.startswith("confirm "):
-        return ParsedMessage(intent="confirm_action", confidence=0.99, confirmation_token=cleaned.split(maxsplit=1)[1])
+    confirm_match = CONFIRM_PATTERN.match(cleaned)
+    if confirm_match:
+        return ParsedMessage(intent="confirm_action", confidence=0.99, confirmation_token=confirm_match.group("token"))
     if lower.startswith("show 90") or lower.startswith("show 61"):
         return ParsedMessage(intent="bucket_query", confidence=0.91, bucket_query="90+")
     if lower.startswith("show "):
@@ -87,8 +91,11 @@ class AIOrchestrator:
         )
 
     def parse_message(self, text: str) -> ParsedMessage:
+        heuristic = _heuristic_parse(text)
+        if heuristic.intent == "confirm_action":
+            return heuristic
         if self.client is None:
-            return _heuristic_parse(text)
+            return heuristic
         schema_prompt = {
             "intent": "customer_timeline | bucket_query | top_overdue | promises_due | update_case | confirm_action | unknown",
             "confidence": 0.0,
@@ -124,7 +131,7 @@ class AIOrchestrator:
             payload = json.loads(response.choices[0].message.content)
             return ParsedMessage.model_validate(payload)
         except Exception:
-            return _heuristic_parse(text)
+            return heuristic
 
     def compose_brief(self, brief: MorningBriefView) -> str | None:
         if self.client is None:
