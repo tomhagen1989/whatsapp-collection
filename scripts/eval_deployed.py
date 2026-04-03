@@ -109,6 +109,7 @@ def webhook(base_url: str, business_id: int, text: str) -> dict:
         {"tenant_id": business_id, "text": text, "raw_payload": {}},
     )
     expect(status == 200, f"/webhooks/whatsapp returned {status} for {text!r}")
+    expect(payload.get("status") != "error", f"Webhook returned error for {text!r}: {payload}")
     return payload
 
 

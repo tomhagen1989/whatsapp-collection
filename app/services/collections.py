@@ -13,6 +13,10 @@ from app.schemas import CustomerTimelineView, ParsedMessage, TimelineCase, Timel
 from app.services.ingestion import normalize_name, refresh_customer_profiles
 
 
+def _as_utc(value: datetime) -> datetime:
+    return value.replace(tzinfo=UTC) if value.tzinfo is None else value.astimezone(UTC)
+
+
 def find_customer_candidates(db: Session, tenant_id: int, query: str) -> list[Customer]:
     normalized = normalize_name(query)
     exact = db.scalars(
@@ -109,7 +113,7 @@ def get_pending_confirmation(db: Session, tenant_id: int, token: str) -> Pending
             PendingConfirmation.resolved_at.is_(None),
         )
     )
-    if confirmation and confirmation.expires_at < datetime.now(UTC):
+    if confirmation and _as_utc(confirmation.expires_at) < datetime.now(UTC):
         return None
     return confirmation
 
