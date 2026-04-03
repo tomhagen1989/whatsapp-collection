@@ -16,6 +16,7 @@ Receivables Copilot is an LLM-forward MVP for WhatsApp-first collections operati
 - WhatsApp webhook flow for drilldowns, updates, clarifications, and confirmations
 - Direct API endpoints for AI extraction and manual case-event append
 - Import history visibility with latest status and error details
+- GitHub Actions smoke and deployed-eval workflows for pre-integration testing
 - Celery wiring for scheduled sync/brief jobs
 - Railway deployment config with healthcheck and pre-deploy migrations
 - Service-level pytest coverage for ingestion, briefing, and verification logic
@@ -43,6 +44,15 @@ The fastest pilot path is now:
 5. Start testing WhatsApp-style queries and updates
 
 If an import fails, check `GET /imports/history?tenant_id=<business_id>` or the `Recent imports` section on the dashboard for the latest error message.
+
+## Deployed evals
+
+There are now two GitHub Actions workflows for deployed checks:
+
+- `Smoke Test Deployed App`: lightweight liveness and endpoint sanity checks
+- `Evaluate Deployed App`: a stronger end-to-end eval that creates a temporary business, seeds receivables through `POST /imports/paste`, verifies summary math, validates customer timelines, and exercises update plus confirmation edge cases
+
+Run them from the `Actions` tab with your Railway base URL.
 
 ## Model switching
 

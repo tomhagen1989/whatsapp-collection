@@ -1,0 +1,40 @@
+name: Evaluate Deployed App
+
+on:
+  workflow_dispatch:
+    inputs:
+      base_url:
+        description: Base URL of the deployed app, for example https://your-app.up.railway.app or your-app.up.railway.app
+        required: true
+        type: string
+      business_name:
+        description: Prefix for the temporary business created during the eval
+        required: false
+        default: GitHub Eval Business
+        type: string
+      timezone:
+        description: Business timezone
+        required: false
+        default: Asia/Kolkata
+        type: string
+
+jobs:
+  deployed-eval:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Run deployed eval
+        run: |
+          python scripts/eval_deployed.py \
+            --base-url "${{ inputs.base_url }}" \
+            --business-name "${{ inputs.business_name }}" \
+            --timezone "${{ inputs.timezone }}"
