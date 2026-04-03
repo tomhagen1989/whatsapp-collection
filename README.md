@@ -7,6 +7,7 @@ Receivables Copilot is an LLM-forward MVP for WhatsApp-first collections operati
 - FastAPI app with server-rendered onboarding dashboard
 - PostgreSQL-friendly SQLAlchemy models and Alembic bootstrap migration
 - Google Drive connection + source registration service seams
+- Manual CSV/XLSX upload for first-pilot onboarding
 - CSV/XLSX normalization and snapshot-based reconciliation
 - Structured customer timeline and morning brief generation
 - OpenRouter-backed message parsing, summarization, and recommendation
@@ -30,6 +31,13 @@ Receivables Copilot is an LLM-forward MVP for WhatsApp-first collections operati
 The repo includes a realistic Tally-style starter export at [sample_data/tally_bills_receivable_sample.csv](/sample_data/tally_bills_receivable_sample.csv).
 
 Use [docs/tally-receivables-source.md](/docs/tally-receivables-source.md) for the recommended Tally report and the expected export shape.
+
+The fastest pilot path is now:
+
+1. Create a business
+2. Upload the CSV/XLSX directly from the console with `POST /imports/upload`
+3. Review `GET /summary/today`
+4. Start testing WhatsApp-style queries and updates
 
 ## Model switching
 
@@ -92,6 +100,7 @@ Because Railway config-as-code applies per deployment, it is usually simplest to
 - `POST /drive/connect` - store Drive tokens for a tenant
 - `POST /drive/sources` - register the receivables source file
 - `POST /imports/run` - trigger a Drive-backed import
+- `POST /imports/upload` - upload and import a local CSV/XLSX file
 - `GET /summary/today` - deterministic morning brief + suggested actions
 - `GET /customers/{customer_id}/timeline` - customer memory view
 - `POST /cases/{case_id}/events` - append a structured event directly

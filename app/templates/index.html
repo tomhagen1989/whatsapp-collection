@@ -11,7 +11,7 @@
       <section class="hero">
         <p class="eyebrow">Receivables Copilot MVP</p>
         <h1>WhatsApp-first collections, with a real memory.</h1>
-        <p class="lede">Set up the business, connect Drive, register the source sheet, and trigger the first sync from this lightweight operator console.</p>
+        <p class="lede">Set up the business, upload a receivables CSV or XLSX, or connect Drive when you are ready for a recurring source. This console is built to get the first pilot live fast.</p>
       </section>
 
       <section class="grid">
@@ -21,6 +21,17 @@
             <label>Business name<input name="business_name" required /></label>
             <label>Timezone<input name="timezone" value="Asia/Kolkata" required /></label>
             <button type="submit">Create business</button>
+          </form>
+        </article>
+
+        <article class="card card-highlight">
+          <h2>Upload receivables file</h2>
+          <p class="card-copy">Fastest pilot path. Upload a Tally-style CSV or XLSX and the app will create a manual source plus import it immediately.</p>
+          <form id="upload-form">
+            <label>Business ID<input name="tenant_id" required /></label>
+            <label>Sheet name (only for XLSX)<input name="source_sheet_name" /></label>
+            <label>Receivables file<input name="file" type="file" accept=".csv,.xlsx,.xls" required /></label>
+            <button type="submit">Upload and import</button>
           </form>
         </article>
 
@@ -35,7 +46,7 @@
         </article>
 
         <article class="card">
-          <h2>Register source</h2>
+          <h2>Register Drive source</h2>
           <form id="source-form">
             <label>Business ID<input name="tenant_id" required /></label>
             <label>Google file ID<input name="google_file_id" required /></label>
@@ -46,7 +57,7 @@
         </article>
 
         <article class="card">
-          <h2>Run import</h2>
+          <h2>Run Drive import</h2>
           <form id="import-form">
             <label>Business ID<input name="tenant_id" required /></label>
             <label>Drive source ID<input name="drive_source_id" required /></label>
@@ -70,7 +81,7 @@
         <h2>Registered sources</h2>
         <ul>
           {% for source in sources %}
-          <li>#{{ source.id }} - {{ source.google_file_name }}{% if source.last_synced_at %} - last synced {{ source.last_synced_at }}{% endif %}</li>
+          <li>#{{ source.id }} - {{ source.google_file_name }} - {{ source.provider|replace('_', ' ') }}{% if source.last_synced_at %} - last synced {{ source.last_synced_at }}{% endif %}</li>
           {% else %}
           <li>No sources yet.</li>
           {% endfor %}
@@ -107,7 +118,23 @@
           document.getElementById('result').textContent = JSON.stringify(data, null, 2);
         });
       }
+
+      function submitMultipart(formId, endpoint) {
+        const form = document.getElementById(formId);
+        form.addEventListener('submit', async (event) => {
+          event.preventDefault();
+          const formData = new FormData(form);
+          const response = await fetch(endpoint, {
+            method: 'POST',
+            body: formData,
+          });
+          const data = await response.json();
+          document.getElementById('result').textContent = JSON.stringify(data, null, 2);
+        });
+      }
+
       submitJson('tenant-form', '/tenants');
+      submitMultipart('upload-form', '/imports/upload');
       submitJson('drive-form', '/drive/connect');
       submitJson('source-form', '/drive/sources');
       submitJson('import-form', '/imports/run');

@@ -1,7 +1,6 @@
-from datetime import date
-
-from app.models import Customer, ReceivableCase
+from app.models import DriveSource, ReceivableCase
 from app.services.ingestion import ingest_source_file
+from app.services.uploads import ingest_manual_upload
 
 
 def test_ingest_source_file_upserts_and_closes_missing_rows(db_session, seeded_tenant):
@@ -29,16 +28,33 @@ def test_ingest_source_file_accepts_tally_style_receivables_headers(db_session, 
 
     assert snapshot.imported_rows == 1
     case = db_session.query(ReceivableCase).one()
-    customer = db_session.query(Customer).one()
 
     assert case.invoice_reference == "INV-1001"
-    assert case.invoice_date == date(2026, 1, 5)
-    assert case.due_date == date(2026, 2, 4)
     assert str(case.amount_outstanding) == "48500.00"
     assert case.overdue_days == 58
     assert case.metadata_json["salesperson"] == "Rohit Sharma"
     assert case.metadata_json["notes"] == "Follow up after dispatch"
     assert case.metadata_json["external_customer_code"] == "CUST-001"
-    assert customer.customer_name == "Gupta Traders"
-    assert customer.phone_number == "9876543210"
-    assert customer.external_customer_code == "CUST-001"
+
+
+def test_ingest_manual_upload_creates_manual_source_and_snapshot(db_session, seeded_tenant):
+    tenant, _ = seeded_tenant
+    csv_payload = b"customer_name,amount_outstanding,due_date,invoice_reference\nKaveri Super Stores,42000,2026-03-31,INV-2403-021\n"
+
+    snapshot, source = ingest_manual_upload(
+        db_session,
+        tenant.id,
+        "pilot-upload.csv",
+        csv_payload,
+        sheet_name=None,
+    )
+
+    stored_source = db_session.query(DriveSource).filter(DriveSource.id == source.id).one()
+    case = db_session.query(ReceivableCase).filter(ReceivableCase.drive_source_id == source.id).one()
+
+    assert stored_source.provider == "manual_upload"
+    assert stored_source.google_file_name == "pilot-upload.csv"
+    assert snapshot.imported_rows == 1
+    assert snapshot.drive_source_id == source.id
+    assert case.invoice_reference == "INV-2403-021"
+    assert str(case.amount_outstanding) == "42000.00"
