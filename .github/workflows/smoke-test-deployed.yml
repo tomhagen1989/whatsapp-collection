@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       base_url:
-        description: Base URL of the deployed app, for example https://your-app.up.railway.app
+        description: Base URL of the deployed app, for example https://your-app.up.railway.app or your-app.up.railway.app
         required: true
         type: string
       business_name:
