@@ -14,6 +14,7 @@ Receivables Copilot is an LLM-forward MVP for WhatsApp-first collections operati
 - Deterministic verification before financial writes
 - WhatsApp webhook flow for drilldowns, updates, clarifications, and confirmations
 - Direct API endpoints for AI extraction and manual case-event append
+- Import history visibility with latest status and error details
 - Celery wiring for scheduled sync/brief jobs
 - Railway deployment config with healthcheck and pre-deploy migrations
 - Service-level pytest coverage for ingestion, briefing, and verification logic
@@ -38,6 +39,8 @@ The fastest pilot path is now:
 2. Upload the CSV/XLSX directly from the console with `POST /imports/upload`
 3. Review `GET /summary/today`
 4. Start testing WhatsApp-style queries and updates
+
+If an import fails, check `GET /imports/history?tenant_id=<business_id>` or the `Recent imports` section on the dashboard for the latest error message.
 
 ## Model switching
 
@@ -101,6 +104,7 @@ Because Railway config-as-code applies per deployment, it is usually simplest to
 - `POST /drive/sources` - register the receivables source file
 - `POST /imports/run` - trigger a Drive-backed import
 - `POST /imports/upload` - upload and import a local CSV/XLSX file
+- `GET /imports/history` - inspect recent import statuses and errors for a business
 - `GET /summary/today` - deterministic morning brief + suggested actions
 - `GET /customers/{customer_id}/timeline` - customer memory view
 - `POST /cases/{case_id}/events` - append a structured event directly

@@ -27,5 +27,9 @@ def ingest_manual_upload(
     db.commit()
     db.refresh(source)
 
-    snapshot = ingest_source_file(db, tenant_id, source, file_name, content, modified_at)
-    return snapshot, source
+    try:
+        snapshot = ingest_source_file(db, tenant_id, source, file_name, content, modified_at)
+        return snapshot, source
+    except Exception:
+        db.refresh(source)
+        raise

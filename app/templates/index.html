@@ -81,9 +81,20 @@
         <h2>Registered sources</h2>
         <ul>
           {% for source in sources %}
-          <li>#{{ source.id }} - {{ source.google_file_name }} - {{ source.provider|replace('_', ' ') }}{% if source.last_synced_at %} - last synced {{ source.last_synced_at }}{% endif %}</li>
+          <li>#{{ source.id }} - business {{ source.tenant_id }} - {{ source.google_file_name }} - {{ source.provider|replace('_', ' ') }}{% if source.last_synced_at %} - last synced {{ source.last_synced_at }}{% endif %}</li>
           {% else %}
           <li>No sources yet.</li>
+          {% endfor %}
+        </ul>
+      </section>
+
+      <section class="card list-card">
+        <h2>Recent imports</h2>
+        <ul>
+          {% for snapshot in snapshots %}
+          <li>#{{ snapshot.id }} - business {{ snapshot.tenant_id }} - source {{ snapshot.drive_source_id }} - {{ snapshot.sync_status }} - rows {{ snapshot.imported_rows }}{% if snapshot.error_message %} - {{ snapshot.error_message }}{% endif %}</li>
+          {% else %}
+          <li>No imports yet.</li>
           {% endfor %}
         </ul>
       </section>
@@ -95,6 +106,15 @@
     </main>
 
     <script>
+      async function readResponse(response) {
+        const text = await response.text();
+        try {
+          return JSON.parse(text);
+        } catch {
+          return {status: response.ok ? 'ok' : 'error', message: text || response.statusText};
+        }
+      }
+
       async function submitJson(formId, endpoint) {
         const form = document.getElementById(formId);
         form.addEventListener('submit', async (event) => {
@@ -114,7 +134,7 @@
             headers: {'Content-Type': 'application/json'},
             body: JSON.stringify(payload),
           });
-          const data = await response.json();
+          const data = await readResponse(response);
           document.getElementById('result').textContent = JSON.stringify(data, null, 2);
         });
       }
@@ -128,7 +148,7 @@
             method: 'POST',
             body: formData,
           });
-          const data = await response.json();
+          const data = await readResponse(response);
           document.getElementById('result').textContent = JSON.stringify(data, null, 2);
         });
       }

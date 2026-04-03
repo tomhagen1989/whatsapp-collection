@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, Request
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
-from sqlalchemy import select
+from sqlalchemy import desc, select
 from sqlalchemy.orm import Session
 
 from app.database import get_db
-from app.models import DriveSource, Tenant
+from app.models import DriveSource, ImportSnapshot, Tenant
 from app.schemas import TenantCreate
 
 router = APIRouter(tags=["dashboard"])
@@ -16,6 +16,7 @@ templates = Jinja2Templates(directory="app/templates")
 def dashboard(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
     tenants = db.scalars(select(Tenant).order_by(Tenant.created_at.desc())).all()
     sources = db.scalars(select(DriveSource).order_by(DriveSource.created_at.desc())).all()
+    snapshots = db.scalars(select(ImportSnapshot).order_by(desc(ImportSnapshot.created_at)).limit(10)).all()
     return templates.TemplateResponse(
         request,
         "index.html",
@@ -23,6 +24,7 @@ def dashboard(request: Request, db: Session = Depends(get_db)) -> HTMLResponse:
             "request": request,
             "tenants": tenants,
             "sources": sources,
+            "snapshots": snapshots,
         },
     )
 
