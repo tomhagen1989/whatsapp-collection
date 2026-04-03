@@ -13,6 +13,18 @@ class SmokeTestError(RuntimeError):
     pass
 
 
+def normalize_base_url(value: str) -> str:
+    cleaned = value.strip().rstrip("/")
+    if not cleaned:
+        raise SmokeTestError("Base URL is required")
+    if "://" not in cleaned:
+        cleaned = f"https://{cleaned}"
+    parsed = urllib.parse.urlparse(cleaned)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        raise SmokeTestError(f"Invalid base URL: {value!r}")
+    return cleaned
+
+
 def request_json(method: str, url: str, payload: dict | None = None) -> tuple[int, dict]:
     data = None
     headers = {"Accept": "application/json"}
@@ -44,12 +56,12 @@ def expect(condition: bool, message: str) -> None:
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Smoke test the deployed Receivables Copilot API")
-    parser.add_argument("--base-url", required=True, help="Deployed base URL, for example https://app.up.railway.app")
+    parser.add_argument("--base-url", required=True, help="Deployed base URL, for example https://app.up.railway.app or app.up.railway.app")
     parser.add_argument("--business-name", default="GitHub Smoke Test Business")
     parser.add_argument("--timezone", default="Asia/Kolkata")
     args = parser.parse_args()
 
-    base_url = args.base_url.rstrip("/")
+    base_url = normalize_base_url(args.base_url)
 
     status, payload = request_json("GET", f"{base_url}/healthz")
     expect(status == 200, f"/healthz returned {status}")
