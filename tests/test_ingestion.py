@@ -1,3 +1,7 @@
+import io
+
+import pandas as pd
+
 from app.models import DriveSource, ReceivableCase
 from app.services.ingestion import ingest_source_file
 from app.services.uploads import ingest_manual_upload
@@ -70,3 +74,35 @@ def test_ingest_source_file_accepts_semicolon_delimited_csv(db_session, seeded_t
     case = db_session.query(ReceivableCase).one()
     assert case.invoice_reference == "INV-1001"
     assert str(case.amount_outstanding) == "48500.00"
+
+
+def test_ingest_source_file_detects_excel_header_row_after_title_rows(db_session, seeded_tenant):
+    tenant, source = seeded_tenant
+
+    workbook = io.BytesIO()
+    with pd.ExcelWriter(workbook, engine="openpyxl") as writer:
+        pd.DataFrame(
+            [
+                ["North America Outstanding Report", None, None, None, None, None],
+                [None, None, None, None, None, None],
+                ["Date", "Ref No.", "Party's Name", "Pending Amount", "Due On", "Overdue by days"],
+                ["2026-01-05", "INV-1001", "Gupta Traders", "48,500", "2026-02-04", 58],
+                ["2026-01-08", "INV-1002", "Total", "48,500", None, None],
+            ]
+        ).to_excel(writer, sheet_name="Outstanding", index=False, header=False)
+        pd.DataFrame([["summary only"]]).to_excel(writer, sheet_name="Overview", index=False, header=False)
+
+    snapshot = ingest_source_file(
+        db_session,
+        tenant.id,
+        source,
+        "NA_Sample_outstanding report xl.xlsx",
+        workbook.getvalue(),
+        None,
+    )
+
+    assert snapshot.imported_rows == 1
+    case = db_session.query(ReceivableCase).one()
+    assert case.invoice_reference == "INV-1001"
+    assert str(case.amount_outstanding) == "48500.00"
+    assert case.customer_id is not None

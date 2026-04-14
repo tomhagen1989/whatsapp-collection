@@ -16,6 +16,16 @@ from app.database import utcnow
 from app.models import Customer, CustomerProfile, DriveSource, ImportSnapshot, ReceivableCase
 from app.schemas import ReceivableImportRow
 
+EXCEL_HEADER_SCAN_LIMIT = 25
+REQUIRED_IMPORT_FIELDS = {"customer_name", "amount_outstanding"}
+IGNORED_ROW_LABELS = {
+    "total",
+    "grand total",
+    "opening balance",
+    "closing balance",
+    "balance carried forward",
+}
+
 
 def normalize_name(value: str) -> str:
     return re.sub(r"\s+", " ", re.sub(r"[^a-z0-9]+", " ", value.lower())).strip()
@@ -24,39 +34,65 @@ def normalize_name(value: str) -> str:
 RAW_COLUMN_ALIASES = {
     "customer_name": [
         "customer",
+        "customer name",
+        "party",
         "party_name",
         "party name",
         "party's name",
         "debtor_name",
         "debtor name",
+        "particulars",
+        "account name",
         "name",
     ],
     "amount_outstanding": [
         "amount",
         "balance",
         "outstanding",
+        "outstanding amount",
         "closing_balance",
         "closing balance",
         "pending amount",
         "pending",
+        "net outstanding",
+        "receivable amount",
     ],
-    "due_date": ["due", "due_dt", "due date", "due on"],
+    "due_date": ["due", "due_dt", "due date", "due on", "due on date"],
     "invoice_reference": [
         "invoice",
         "invoice_no",
         "invoice_number",
         "bill_no",
+        "bill no",
+        "voucher no",
+        "document no",
         "ref no",
         "ref no.",
         "reference",
         "bill reference",
     ],
-    "invoice_date": ["invoice_dt", "bill_date", "date", "voucher date"],
-    "overdue_days": ["days_overdue", "age_days", "overdue days", "overdue by days"],
+    "invoice_date": ["invoice_dt", "bill_date", "date", "voucher date", "document date"],
+    "overdue_days": [
+        "days_overdue",
+        "age_days",
+        "overdue",
+        "overdue days",
+        "overdue by days",
+        "days overdue",
+        "ageing days",
+    ],
     "phone_number": ["phone", "mobile", "mobile no", "mobile number", "phone number"],
-    "salesperson": ["sales_person", "owner", "sales person", "salesperson"],
-    "notes": ["remarks", "comment", "narration", "notes"],
-    "external_customer_code": ["customer_code", "party_code", "party code", "ledger_code", "ledger code"],
+    "salesperson": ["sales_person", "owner", "sales person", "salesperson", "sales executive"],
+    "notes": ["remarks", "comment", "comments", "narration", "notes"],
+    "external_customer_code": [
+        "customer_code",
+        "customer code",
+        "party_code",
+        "party code",
+        "ledger_code",
+        "ledger code",
+        "account code",
+    ],
 }
 
 COLUMN_ALIASES = {
@@ -114,6 +150,79 @@ def _read_csv_dataframe(content: bytes) -> pd.DataFrame:
     raise ValueError(f"Could not parse CSV upload. {last_error}")
 
 
+def _clean_excel_header_cell(value: object) -> str:
+    if value is None or pd.isna(value):
+        return ""
+    text = str(value).strip()
+    if not text or text.lower().startswith("unnamed:"):
+        return ""
+    return text
+
+
+def _dedupe_headers(headers: list[str]) -> list[str]:
+    deduped: list[str] = []
+    seen: dict[str, int] = {}
+    for index, header in enumerate(headers, start=1):
+        base = header or f"unnamed_{index}"
+        count = seen.get(base, 0) + 1
+        seen[base] = count
+        deduped.append(base if count == 1 else f"{base}_{count}")
+    return deduped
+
+
+def _score_candidate_header(columns: list[str], mapping: dict[str, str]) -> tuple[int, int, int]:
+    normalized_columns = _normalize_columns(columns)
+    matched_fields = {
+        field
+        for field in ReceivableImportRow.model_fields
+        if _pick_source_column(field, normalized_columns, mapping)
+    }
+    required_matches = sum(1 for field in REQUIRED_IMPORT_FIELDS if field in matched_fields)
+    named_columns = sum(1 for column in columns if column and not column.startswith("unnamed_"))
+    return required_matches, len(matched_fields), named_columns
+
+
+def _read_excel_dataframe(content: bytes, mapping: dict[str, str], sheet_name: str | None) -> pd.DataFrame:
+    workbook = pd.read_excel(pd.io.common.BytesIO(content), sheet_name=sheet_name or None, header=None)
+    if not isinstance(workbook, dict):
+        workbook = {sheet_name or "Sheet1": workbook}
+
+    if sheet_name and sheet_name not in workbook:
+        raise ValueError(f"Sheet '{sheet_name}' was not found in the uploaded workbook.")
+
+    best_score = (-1, -1, -1, 0)
+    best_dataframe: pd.DataFrame | None = None
+
+    candidate_sheets = [(sheet_name, workbook[sheet_name])] if sheet_name else list(workbook.items())
+    for _, sheet_frame in candidate_sheets:
+        trimmed = sheet_frame.dropna(axis=0, how="all").dropna(axis=1, how="all").reset_index(drop=True)
+        if trimmed.empty:
+            continue
+
+        scan_limit = min(EXCEL_HEADER_SCAN_LIMIT, len(trimmed))
+        for header_row_index in range(scan_limit):
+            raw_headers = [_clean_excel_header_cell(value) for value in trimmed.iloc[header_row_index].tolist()]
+            deduped_headers = _dedupe_headers(raw_headers)
+            prepared = trimmed.iloc[header_row_index + 1 :].copy()
+            prepared.columns = deduped_headers
+            prepared = prepared.dropna(axis=0, how="all").dropna(axis=1, how="all")
+            if prepared.empty:
+                continue
+
+            score = (*_score_candidate_header(deduped_headers, mapping), -header_row_index)
+            if score > best_score:
+                best_score = score
+                best_dataframe = prepared
+
+    if best_dataframe is None or best_score[0] == 0:
+        raise ValueError(
+            "Could not locate a usable header row in the Excel workbook. "
+            "Make sure the sheet includes customer and amount columns."
+        )
+
+    return best_dataframe
+
+
 def _as_decimal(value: object) -> Decimal:
     if value is None or value == "":
         return Decimal("0")
@@ -130,11 +239,16 @@ def _as_date(value: object) -> date | None:
     return parsed.date()
 
 
+def _should_skip_row(customer_name: str) -> bool:
+    normalized = normalize_name(customer_name)
+    return normalized in IGNORED_ROW_LABELS
+
+
 def load_rows(file_name: str, content: bytes, mapping: dict[str, str], sheet_name: str | None) -> list[ReceivableImportRow]:
     if file_name.lower().endswith(".csv"):
         dataframe = _read_csv_dataframe(content)
     else:
-        dataframe = pd.read_excel(pd.io.common.BytesIO(content), sheet_name=sheet_name or 0)
+        dataframe = _read_excel_dataframe(content, mapping, sheet_name)
 
     normalized_columns = _normalize_columns(list(dataframe.columns))
     rows: list[ReceivableImportRow] = []
@@ -143,10 +257,15 @@ def load_rows(file_name: str, content: bytes, mapping: dict[str, str], sheet_nam
         for field in ReceivableImportRow.model_fields:
             source_column = _pick_source_column(field, normalized_columns, mapping)
             payload[field] = series[source_column] if source_column in series else None
-        if not payload.get("customer_name") or payload.get("amount_outstanding") in (None, ""):
+
+        customer_name = str(payload.get("customer_name") or "").strip()
+        if not customer_name or payload.get("amount_outstanding") in (None, ""):
             continue
+        if _should_skip_row(customer_name):
+            continue
+
         row = ReceivableImportRow(
-            customer_name=str(payload["customer_name"]).strip(),
+            customer_name=customer_name,
             amount_outstanding=_as_decimal(payload["amount_outstanding"]),
             due_date=_as_date(payload.get("due_date")),
             invoice_reference=str(payload["invoice_reference"]).strip() if payload.get("invoice_reference") not in (None, "") else None,
